@@ -1,0 +1,16 @@
+Hidrografija vključuje podatke o tekočih in stoječih vodah ter o grajenih in ostalih objektih povezanih z vodami.
+
+TC: 
+Točkovni podatkovni sloj hidrografije vsebuje elemente (objekte, segmente) hidrografije, ki so zajeti s točkovno geometrijo (npr. slap, izvir, ponor, jez, zapornica, stopnja, itd.).
+
+LIN_PV:
+Linijski podatkovni sloj hidrografije – površinske vode vsebuje površinske vode, ki so zajete z linijsko geometrijo (npr. struga vodnega toka, kanal, akumulacijsko jezero, melioracijski jarek, itd.).
+
+LIN_OBJ:
+Linijski podatkovni sloj hidrografije – objekti in ostalo vsebuje objekte in ostale dele površinskih voda, ki so zajeti z linijsko geometrijo (npr. slap, zapornica, nasip, jez, stopnja, itd.).
+
+OBM_PV:
+Ploskovni podatkovni sloj hidrografije – površinske vode vsebuje površinske vode, ki so zajete s ploskovno geometrijo (npr. struga vodnega toka, kanal, akumulacijsko jezero, jezero, vodni zbiralnik, rekreacijski bazen, itd.).
+
+OBM_OBJ:
+Ploskovni podatkovni sloj hidrografije – objekti in ostalo vsebuje objekte in ostale dele površinskih voda, ki so zajeti s ploskovno geometrijo (npr. jez, obalna konstrukcija, prodišče, zapornica, itd.).

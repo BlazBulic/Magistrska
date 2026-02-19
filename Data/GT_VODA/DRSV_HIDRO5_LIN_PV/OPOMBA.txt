@@ -1,0 +1,3 @@
+HIDRO5_LIN_PV je razdeljen na dva dela:
+HIDRO5_LIN_PV_TIPTV1_2 vsebuje objekte z atributom TIP_TV = 1 (TIP_IME = vodotok) in TIP_TV = 2 (TIP_IME = razbremenilni kanal). 
+HIDRO5_LIN_PV_TIPTV3_6 vsebuje objekte z atributom TIP_TV = 3 (TIP_IME = padavinski jarek) , TIP_TV = 4 (TIP_IME = obcestni jarek) , TIP_TV = 5 (TIP_IME = melioracijski jarek) in TIP_TV = 6 (TIP_IME = objekt (kanal) za posebno rabo vode).
