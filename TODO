@@ -1,3 +1,11 @@
+- nepopolnost "ortophootjev"
+
+- scalability/bulk dowlnoad za lidar??? mogoce focus na eno obmocje slovenije???
+
+- mogoce vzamem samo subset LIDAR tock?? ali cisto izlocim <3m visine???
+
+- voda??
+
 - ugotovi kako in kdaj delat intersekcijo med tockami in poligoni
 
 - clustering: problem kako določiti parametre algoritmov ko imaš tako različne skupine dreves
