@@ -23,16 +23,18 @@ las_veg <- filter_poi(las, Classification %in% c(3,4,5) & NumberOfReturns > 1)
 
 # get segmentation
 chm <- rasterize_canopy(las_veg, res = 0.5, p2r(subcircle = 0.2))
+#alternative
+#chm <- rasterize_canopy(las_veg, res = 0.5, pitfree())
 chm <- focal(chm, w = matrix(5,5,3), fun = mean, na.policy = "omit")
 
 ttops <- locate_trees(
   chm,
-  lmf(ws = function(h) { 2 + 0.07 * h }, hmin = 6)
+  lmf(ws = function(h) { 2 + 0.07 * h }, hmin = 5)
 )
 
 las_trees <- segment_trees(
   las_veg,
-  dalponte2016(chm, ttops, th_tree = 6)
+  dalponte2016(chm, ttops, th_tree = 5)
 )
 
 # Write ONLY the segmented LAS
