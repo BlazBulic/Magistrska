@@ -1,15 +1,25 @@
 - nepopolnost "ortophootjev"
 
 - scalability/bulk dowlnoad za lidar??? mogoce focus na eno obmocje slovenije???
+scraper; razlicna obmocja 4x4 ali 8x8 km
 
 - mogoce vzamem samo subset LIDAR tock?? ali cisto izlocim <3m visine???
+subset pa prototipe 
 
-- voda??
+- voda?? signed distance fields od poligonov
+
+- probaj segmentiranje posameznih dreves z nevronskimi mrezami(iz diplomske) oz. z drugimi 
+novejsimi pristopi
 
 - ugotovi kako in kdaj delat intersekcijo med tockami in poligoni
+segmentiraj drevesa na vseh tockah vegetacije
 
 - clustering: problem kako določiti parametre algoritmov ko imaš tako različne skupine dreves
+uporabi dodatne atribute za gručenje, npr. lidar klasifikacija vegetacije(<3, 3 do 5, >5) itd.
 
 - cluster attributes
 
-- ML models
+- ML models (malo razisci kaksne modele so ze probali za podobne probleme)
+
+
+SHARE GITHUB
