@@ -105,6 +105,7 @@ def compute_water_distance_features(forest_shp_path, water_shp_path, target_crs=
 
     return forest
 
+# computing pca of clusters
 def _pca_2d_eigenvalues(xy: np.ndarray):
     if xy is None or len(xy) < 2:
         return np.nan, np.nan
@@ -115,6 +116,7 @@ def _pca_2d_eigenvalues(xy: np.ndarray):
     lam2, lam1 = float(w[0]), float(w[1])
     return lam1, lam2
 
+# computing nearest neigbors stats of clusters
 def _nearest_neighbor_stats(xy: np.ndarray):
     n = len(xy)
     if n < 2:
@@ -124,6 +126,7 @@ def _nearest_neighbor_stats(xy: np.ndarray):
     nn = np.sqrt(np.min(d2, axis=1))
     return float(np.mean(nn)), float(np.std(nn))
 
+# main function for building the dataset
 def build_cluster_dataset_from_labels(
     trees_gdf: gpd.GeoDataFrame,
     labels: np.ndarray | list,              # cluster id per tree row (same order as trees_gdf)
@@ -175,7 +178,7 @@ def build_cluster_dataset_from_labels(
     trees["_x"] = trees.geometry.x.to_numpy()
     trees["_y"] = trees.geometry.y.to_numpy()
 
-    # --- compute cluster features ---
+    #  compute cluster features 
     feats_list = []
     geoms = []
 
@@ -249,7 +252,7 @@ def build_cluster_dataset_from_labels(
     if clusters.empty:
         return clusters
 
-    # --- assign target class from annotated polygons ---
+    #  assign target class from annotated polygons 
     # Use centroid for within test (even if geometry is hull)
     cent = clusters.copy()
     cent["geometry"] = cent.geometry.centroid
@@ -261,7 +264,7 @@ def build_cluster_dataset_from_labels(
         predicate=join_predicate,
     ).drop(columns=["index_right"], errors="ignore")
 
-    # If overlapping polygons can match multiple times, keep the first; or you can change logic here.
+    # If overlapping polygons can match multiple times, keep the first
     # Deduplicate by cluster row index:
     joined = joined[~joined.index.duplicated(keep="first")]
 

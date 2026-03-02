@@ -139,26 +139,22 @@ def merge_clusters_by_contact(labels, xy, h, merge_pair_xy=6.0, merge_pair_h=np.
 def multi_step_clustering_plot(
     gdf,
     height_col,
-    # --- spatial ---
+    #  spatial 
     xy_multiplier_coarse=3.5,          # bigger = fewer coarse patches
     xy_multiplier_split=3,           # bigger = fewer splits inside patch
-    # --- height split ---
+    #  height split 
     height_mode="neighbor_percentile", # "neighbor_percentile" or "std"
     height_percentile=80,              # higher = looser height constraint
     height_multiplier=2.0,             # used if height_mode="std"
-    # --- cleanup/merge ---
-    min_cluster_size=1,                # tiny clusters are likely fragmentation
-    merge_centroid_xy=8.0,             # meters; merges clusters close in XY centroid
-    merge_centroid_h=6.0,              # meters; merges if centroid heights are close
-    # --- line detection ---
+    #  line detection 
     detect_lines=True,
     line_ratio_thresh=0.9,
     line_xy_boost=2,            # multiplies radius_xy_split for line patches
     ignore_height_for_lines=True, # if True, don't use height constraint in line patches,
-    # --- merging ---
+    #  merging 
     merge_pair_xy=12,   # try 8–15
     merge_pair_h=np.inf,  # or e.g. 10.0 if you want height consistency
-    # --- plotting ---
+    #  plotting 
     plot=True,
     label_clusters=True,
     save=False,
@@ -179,9 +175,7 @@ def multi_step_clustering_plot(
     xy = np.column_stack((gdf.geometry.x.to_numpy(), gdf.geometry.y.to_numpy()))
     h = gdf[height_col].to_numpy()
 
-    # -----------------------------
-    # Step 1: coarse XY connectivity patches
-    # -----------------------------
+    # Rough clusters, only looking at 2D distance, using graphs
     nn2 = NearestNeighbors(n_neighbors=2).fit(xy)
     nn_dist = nn2.kneighbors(xy)[0][:, 1]
     radius_xy_coarse = xy_multiplier_coarse * float(np.median(nn_dist))
@@ -190,9 +184,7 @@ def multi_step_clustering_plot(
     A_global = nbrs_r.radius_neighbors_graph(xy, mode="connectivity")
     spatial_labels = connected_components(A_global)[1]
 
-    # -----------------------------
-    # Step 2: within-patch height-aware split (dual threshold graph)
-    # -----------------------------
+    #  within-patch height-aware split (dual threshold graph)
     final_labels = np.full(len(gdf), -1, dtype=int)
     global_id = 0
 
@@ -211,7 +203,7 @@ def multi_step_clustering_plot(
         nn_patch = NearestNeighbors(n_neighbors=2).fit(xy_sub).kneighbors(xy_sub)[0][:, 1]
         radius_xy_split = xy_multiplier_split * float(np.median(nn_patch))
 
-        # ---- detect if the whole patch is line-like ----
+        # detect if the whole patch is line-like 
         is_line_patch = False
         if len(xy_sub) >= 6:  # need enough points for stable PCA
             pca_patch = PCA(n_components=2).fit(xy_sub)
@@ -222,7 +214,7 @@ def multi_step_clustering_plot(
         if is_line_patch:
             radius_xy_split *= line_xy_boost
 
-        # ---- patch-specific height threshold ----
+        #  patch-specific height threshold 
         if is_line_patch and ignore_height_for_lines:
             radius_h = np.inf  # effectively disables height constraint for line patches
         else:
@@ -273,21 +265,11 @@ def multi_step_clustering_plot(
             final_labels[sub_idx] = global_id
             global_id += 1
 
-    # -----------------------------
-    # Cleanup: mark tiny clusters as -1 (fragmentation)
-    # -----------------------------
+
     labels = final_labels.copy()
     uniq, counts = np.unique(labels, return_counts=True)
-    tiny = set(uniq[counts < min_cluster_size])
 
-    # keep singletons as their own if you want; here we treat them as tiny too
-    for t in tiny:
-        labels[labels == t] = -1
-
-    # -----------------------------
     # Merge pass: merge clusters whose centroids are close in XY and height
-    # -----------------------------
-    # Recompute clusters excluding -1
     labels = merge_clusters_by_contact(
     labels,
     xy=xy,
@@ -303,9 +285,7 @@ def multi_step_clustering_plot(
     for cid, new in mapping.items():
         relabeled[relabeled == cid] = new
 
-    # -----------------------------
     # Plot
-    # -----------------------------
     if plot:
         uniq = np.unique(relabeled)
         label_to_color_idx = {lbl: i for i, lbl in enumerate(uniq)}
@@ -325,7 +305,7 @@ def multi_step_clustering_plot(
 
         ax.set_title(
             f"Multi-step clustering | coarse={xy_multiplier_coarse:.2f}, split={xy_multiplier_split:.2f}, "
-            f"h_mode={height_mode}, p={height_percentile}, min={min_cluster_size}"
+            f"h_mode={height_mode}, p={height_percentile}"
         )
         ax.set_axis_off()
         plt.tight_layout()
