@@ -25,7 +25,8 @@ NEKAJ JE, PROSTOR ZA IZBOLJŠAVE
 - ML models (malo razisci kaksne modele so ze probali za podobne probleme)
 
 NASLEDNJI KORAKI:
--segmentacija z novejšimi metodami(SegmentAnyTree??)
+-namesto convex hulls delaj SES/MSS molekul
+-segmentacija z novejšimi metodami(SegmentAnyTree??) PROBAJ CUDA 11.8
 -preveriti kako se clustering obnaša nad tako segmentiranimi drevesi
 -zgraditi večje datasete
 -probati ML modele(raziskati kaj se je že kaj uporabljalo)
