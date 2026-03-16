@@ -42,5 +42,5 @@ NASLEDNJI KORAKI:
                 terrain slope / elevation
 
 - ocenjevanje segmentacije
-- pripravi za sestanek razne stvar
+- pripravi za sestanek razne stvar: metrike clusering, vizualizacija, metrike ML-ja, ...
 - second level clustering: razdrobiti clustre ce ima to smisel
