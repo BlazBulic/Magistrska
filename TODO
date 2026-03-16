@@ -35,7 +35,12 @@ NASLEDNJI KORAKI:
                 distance to cadastral boundaries
                 canopy height model
                 vegetation density within 20–50 m
+                satelittni podatki !!!!!!!
                 average LiDAR height nearb
                 percentage of vegetation nearby
                 distance to nearest tree cluster
                 terrain slope / elevation
+
+- ocenjevanje segmentacije
+- pripravi za sestanek razne stvar
+- second level clustering: razdrobiti clustre ce ima to smisel
