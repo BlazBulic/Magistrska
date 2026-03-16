@@ -3,6 +3,8 @@ import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 import numpy as np
+from shapely.geometry import MultiPoint, Polygon, MultiPolygon, GeometryCollection
+from shapely.ops import unary_union
 
 
 def plot_lidar_and_polygons(gdf, intersecting_polygons, save=False, save_path=r"C:\Users\blazb\Desktop\Magistrska\Figures\Working_process\figure_"):

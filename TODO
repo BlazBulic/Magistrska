@@ -25,11 +25,17 @@ NEKAJ JE, PROSTOR ZA IZBOLJŠAVE
 - ML models (malo razisci kaksne modele so ze probali za podobne probleme)
 
 NASLEDNJI KORAKI:
--namesto convex hulls delaj SES/MSS molekul
+-namesto convex hulls delaj SES/MSS molekul //// DONE
 -segmentacija z novejšimi metodami(SegmentAnyTree??) PROBAJ CUDA 11.8
 -preveriti kako se clustering obnaša nad tako segmentiranimi drevesi
--zgraditi večje datasete
+-zgraditi večje datasete /// DONE ??
 -probati ML modele(raziskati kaj se je že kaj uporabljalo)
-
-
-SHARE GITHUB
+-več atrubutov: distance to buildings
+                distance to rivers
+                distance to cadastral boundaries
+                canopy height model
+                vegetation density within 20–50 m
+                average LiDAR height nearb
+                percentage of vegetation nearby
+                distance to nearest tree cluster
+                terrain slope / elevation
