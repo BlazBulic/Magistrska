@@ -26,12 +26,11 @@ NEKAJ JE, PROSTOR ZA IZBOLJŠAVE
 
 NASLEDNJI KORAKI:
 -namesto convex hulls delaj SES/MSS molekul //// DONE
--segmentacija z novejšimi metodami(SegmentAnyTree??) PROBAJ CUDA 11.8
+-segmentacija z novejšimi metodami(SegmentAnyTree??)// DONE
 -preveriti kako se clustering obnaša nad tako segmentiranimi drevesi
 -zgraditi večje datasete /// DONE ??
 -probati ML modele(raziskati kaj se je že kaj uporabljalo)
 -več atrubutov: distance to buildings
-                distance to rivers
                 distance to cadastral boundaries
                 canopy height model
                 vegetation density within 20–50 m
@@ -40,7 +39,3 @@ NASLEDNJI KORAKI:
                 percentage of vegetation nearby
                 distance to nearest tree cluster
                 terrain slope / elevation
-
-- ocenjevanje segmentacije
-- pripravi za sestanek razne stvar: metrike clusering, vizualizacija, metrike ML-ja, ...
-- second level clustering: razdrobiti clustre ce ima to smisel

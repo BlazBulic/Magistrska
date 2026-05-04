@@ -8,8 +8,12 @@ from pathlib import Path
 
 
 # returns a geopandas object of the ortophoto polygons
-def read_ortophoto(path):
+def read_ortophoto(path, exclude_column=None, exclude_value=None):
     polygons = gpd.read_file(path)
+
+    if exclude_column is not None and exclude_value is not None:
+        polygons = polygons[polygons[exclude_column] != exclude_value].copy()
+
     #print(f"Loaded {len(polygons)} polygons, CRS: {polygons.crs}")
 
     return polygons
@@ -25,18 +29,17 @@ def read_lidar_data(path):
 
 # takes laspy object and returns a GeoDataFrame of LIDAR points
 def las_to_gdf(las, crs="EPSG:3794"):
-    data = {
-        dim: las[dim]
-        for dim in las.point_format.dimension_names
-    }
+    data = {dim: las[dim] for dim in las.point_format.dimension_names}
     df = pd.DataFrame(data)
-    gdf = gpd.GeoDataFrame(
-        df,
-        geometry=gpd.points_from_xy(las.x, las.y),
-        crs=crs
-    )
+
+    df["X"] = np.asarray(las.x, dtype=float)
+    df["Y"] = np.asarray(las.y, dtype=float)
+    df["Z"] = np.asarray(las.z, dtype=float)
+
+    gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df["X"], df["Y"]), crs=crs)
 
     return gdf
+
 
 # takes the laspy object of points and the ortophoto polygons and returns those that are in intersection with eachother
 def get_intersecting_structures(las, polygons):
@@ -57,6 +60,48 @@ def get_intersecting_structures(las, polygons):
     )
 
     return vegetation_gdf, intersecting_polygons, intersecting_points
+
+# for sat results which are more accurate
+def get_intersecting_structures_sat(las, polygons, instance_col="PredInstance", min_overlap_ratio=0.1, min_points_inside=5, crs_epsg=3794):
+    pc_bbox = box(las.x.min(), las.y.min(), las.x.max(), las.y.max())
+    intersecting_polygons = polygons[polygons.intersects(pc_bbox)].copy()
+
+    points_gdf = las_to_gdf(las)
+
+    if points_gdf.crs is None:
+        points_gdf = points_gdf.set_crs(epsg=crs_epsg, allow_override=True)
+
+    if intersecting_polygons.crs is None:
+        intersecting_polygons = intersecting_polygons.set_crs(epsg=crs_epsg, allow_override=True)
+    else:
+        intersecting_polygons = intersecting_polygons.to_crs(points_gdf.crs)
+
+    if instance_col not in points_gdf.columns:
+        raise ValueError(f"Missing instance column '{instance_col}'. Available columns: {list(points_gdf.columns)}")
+
+    points_gdf = points_gdf[points_gdf[instance_col] > 0].copy()
+
+    if "classification" in points_gdf.columns:
+        points_gdf = points_gdf[points_gdf["classification"].isin([3, 4, 5])].copy()
+
+    intersecting_points = gpd.sjoin(points_gdf, intersecting_polygons, predicate="within", how="inner")
+
+    total_counts = points_gdf.groupby(instance_col).size()
+    inside_counts = intersecting_points.groupby(instance_col).size()
+
+    overlap_ratio = inside_counts / total_counts.loc[inside_counts.index]
+
+    keep_ids = overlap_ratio[(overlap_ratio >= min_overlap_ratio) & (inside_counts >= min_points_inside)].index
+
+    relevant_points_gdf = points_gdf[points_gdf[instance_col].isin(keep_ids)].copy()
+
+    print("SAT points total:", len(points_gdf))
+    print("SAT tree instances total:", points_gdf[instance_col].nunique())
+    print("SAT points inside polygons:", len(intersecting_points))
+    print("SAT tree instances touching polygons:", len(inside_counts))
+    print("SAT tree instances kept:", len(keep_ids))
+
+    return relevant_points_gdf, intersecting_polygons, intersecting_points
 
 def compute_water_distance_features(forest_shp_path, water_shp_path, target_crs="EPSG:3794", output_path=None, search_buffer=100):
     """
@@ -163,3 +208,21 @@ def merge_las_files(las_list):
 
 def save_las(las, output_path):
     las.write(output_path)
+
+
+def save_cluster_to_csv(trees_gdf, labels, cluster_id, output_path):
+    cluster_points = trees_gdf.copy()
+    cluster_points["cluster_id"] = labels
+    cluster_points = cluster_points[cluster_points["cluster_id"] == cluster_id].copy()
+
+    if len(cluster_points) == 0:
+        print(f"No points found for cluster {cluster_id}")
+        return
+
+    cluster_points["x"] = cluster_points.geometry.x
+    cluster_points["y"] = cluster_points.geometry.y
+
+    cluster_points = cluster_points.drop(columns=["geometry"], errors="ignore")
+    cluster_points.to_csv(output_path, index=False)
+
+    print(f"Saved cluster {cluster_id} with {len(cluster_points)} points to {output_path}")

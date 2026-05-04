@@ -21,8 +21,8 @@ def gpkg_to_csv(gpkg_path, csv_path, layer=None, include_geometry=False, geometr
 
 
 if __name__ == "__main__":
-    gpkg_path = r"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\cluster_dataset.gpkg"
-    csv_path = r"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\cluster_dataset.csv"
+    gpkg_path = r"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\cluster_dataset_SAT_GKOT_585_165.gpkg"
+    csv_path = r"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\cluster_dataset_SAT_GKOT_585_165.csv"
     layer = None
 
     gpkg_to_csv(gpkg_path, csv_path, layer=layer, include_geometry=False)

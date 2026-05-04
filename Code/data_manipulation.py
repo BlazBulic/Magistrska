@@ -7,6 +7,7 @@ import rasterio
 import matplotlib.pyplot as plt
 from pathlib import Path
 from shapely.geometry import Point, MultiPoint
+from shapely import concave_hull as shapely_concave_hull
 from shapely.ops import unary_union
 from scipy.spatial import cKDTree
 from rasterio.features import rasterize
@@ -36,6 +37,97 @@ def remove_duplicate_trees(gdf, distance=1.0):
 
     drop = set(j for i, j in pairs)
     return gdf.drop(gdf.index[list(drop)])
+
+def aggregate_sat_points_to_trees(sat_points_gdf: gpd.GeoDataFrame, instance_col: str = "treeID", height_col: str = "Z", min_points_per_tree: int = 5, output_crs: str | None = None) -> gpd.GeoDataFrame:
+    if instance_col not in sat_points_gdf.columns:
+        raise ValueError(f"Missing instance column '{instance_col}'. Available columns: {list(sat_points_gdf.columns)}")
+
+    if height_col not in sat_points_gdf.columns:
+        raise ValueError(f"Missing height column '{height_col}'. Available columns: {list(sat_points_gdf.columns)}")
+
+    gdf = sat_points_gdf.copy()
+    gdf = gdf[gdf[instance_col].notna()]
+    gdf = gdf[gdf[instance_col] > 0]
+
+    rows = []
+
+    for tree_id, group in gdf.groupby(instance_col):
+        if len(group) < min_points_per_tree:
+            continue
+
+        x = group.geometry.x.to_numpy()
+        y = group.geometry.y.to_numpy()
+        z = group[height_col].to_numpy()
+
+        centroid_x = float(np.mean(x))
+        centroid_y = float(np.mean(y))
+
+        # height features
+        min_z = float(np.min(z))
+        max_z = float(np.max(z))
+        mean_z = float(np.mean(z))
+        median_z = float(np.median(z))
+        std_z = float(np.std(z))
+        height_range = float(max_z - min_z)
+        z_p10, z_p25, z_p50, z_p75, z_p90 = np.percentile(z, [10, 25, 50, 75, 90])
+
+        # crown geometry
+        pts = MultiPoint(np.column_stack((x, y)))
+        hull = pts.convex_hull
+
+        crown_area = float(hull.area)
+        crown_perimeter = float(hull.length)
+
+        minx, miny, maxx, maxy = hull.bounds
+        crown_width = float(maxx - minx)
+        crown_length = float(maxy - miny)
+
+        if crown_area > 0:
+            crown_diameter = float(2 * np.sqrt(crown_area / np.pi))
+            point_density = float(len(group) / crown_area)
+        else:
+            crown_diameter = 0.0
+            point_density = 0.0
+
+        crown_compactness = float((4 * np.pi * crown_area) / (crown_perimeter ** 2)) if crown_perimeter > 0 else 0.0
+        crown_width_length_ratio = float(crown_width / crown_length) if crown_length > 0 else 0.0
+
+        rows.append({
+            "treeID": tree_id,
+            "n_points": int(len(group)),
+
+            # compatibility
+            "Z": max_z,
+
+            # height
+            "height_max": max_z,
+            "height_min": min_z,
+            "height_mean": mean_z,
+            "height_median": median_z,
+            "height_std": std_z,
+            "height_range": height_range,
+            "height_p10": float(z_p10),
+            "height_p25": float(z_p25),
+            "height_p50": float(z_p50),
+            "height_p75": float(z_p75),
+            "height_p90": float(z_p90),
+
+            # crown
+            "crown_area": crown_area,
+            "crown_perimeter": crown_perimeter,
+            "crown_diameter": crown_diameter,
+            "crown_width": crown_width,
+            "crown_length": crown_length,
+            "crown_width_length_ratio": crown_width_length_ratio,
+            "crown_compactness": crown_compactness,
+
+            # density
+            "point_density": point_density,
+
+            "geometry": Point(centroid_x, centroid_y)
+        })
+
+    return gpd.GeoDataFrame(rows, geometry="geometry", crs=output_crs or sat_points_gdf.crs)
 
 
 def filter_trees_in_polygons(trees_gdf, polygons_gdf):
@@ -113,7 +205,7 @@ def make_cluster_geometry(grp, xy, method="concave_hull", concavity=0.3, alpha=0
         if len(xy) < 4:
             return mp.convex_hull
         try:
-            geom = mp.concave_hull(ratio=concavity)
+            geom = shapely_concave_hull(mp, ratio=concavity)
             if geom is None or geom.is_empty:
                 return mp.convex_hull
             return geom
@@ -224,20 +316,68 @@ def build_cluster_dataset_from_labels(trees_gdf: gpd.GeoDataFrame, labels: np.nd
     if clusters.empty:
         return clusters
 
-    cent = clusters.copy()
-    cent["geometry"] = cent.geometry.centroid
+    # point-based majority assignment of target/dist_to_water
+    point_join = gpd.sjoin(
+        trees[[cluster_col_out, "geometry"]],
+        polygons_gdf[[target_col, dist_to_water_col, "geometry"]],
+        how="left",
+        predicate=join_predicate
+    ).drop(columns=["index_right"], errors="ignore")
 
-    joined = gpd.sjoin(cent, polygons_gdf[[target_col, dist_to_water_col, "geometry"]], how="left", predicate=join_predicate).drop(columns=["index_right"], errors="ignore")
-    joined = joined[~joined.index.duplicated(keep="first")]
+    point_join = point_join.dropna(subset=[target_col])
 
-    clusters[target_col] = joined[target_col].reindex(clusters.index).to_numpy()
-    clusters[dist_to_water_col] = joined[dist_to_water_col].reindex(clusters.index).to_numpy()
+    clusters[target_col] = np.nan
+    clusters[dist_to_water_col] = np.nan
+    clusters["dominant_count"] = np.nan
+    clusters["matched_points"] = np.nan
+    clusters["dominant_fraction"] = np.nan
+    clusters["n_labels_touched"] = np.nan
+
+    if not point_join.empty:
+        counts = point_join.groupby([cluster_col_out, target_col]).size().rename("n_points").reset_index()
+
+        dominant = counts.sort_values([cluster_col_out, "n_points"], ascending=[True, False]).drop_duplicates(subset=[cluster_col_out], keep="first")
+        dominant = dominant.rename(columns={target_col: "_assigned_target", "n_points": "dominant_count"})
+
+        matched_points = point_join.groupby(cluster_col_out).size().rename("matched_points").reset_index()
+        n_labels_touched = counts.groupby(cluster_col_out).size().rename("n_labels_touched").reset_index()
+
+        dominant = dominant.merge(matched_points, on=cluster_col_out, how="left")
+        dominant = dominant.merge(n_labels_touched, on=cluster_col_out, how="left")
+        dominant["dominant_fraction"] = dominant["dominant_count"] / dominant["matched_points"]
+
+        # assign dist_to_water from the dominant target row
+        point_join_with_counts = point_join.merge(counts, on=[cluster_col_out, target_col], how="left")
+        dominant_dist = point_join_with_counts.sort_values([cluster_col_out, "n_points"], ascending=[True, False]).drop_duplicates(subset=[cluster_col_out], keep="first")
+        dominant_dist = dominant_dist[[cluster_col_out, dist_to_water_col]].rename(columns={dist_to_water_col: "_assigned_dist_water"})
+
+        dominant = dominant.merge(dominant_dist, on=cluster_col_out, how="left")
+
+        clusters = clusters.merge(
+            dominant[[cluster_col_out, "_assigned_target", "_assigned_dist_water", "dominant_count", "matched_points", "dominant_fraction", "n_labels_touched"]],
+            left_on="cluster_id",
+            right_on=cluster_col_out,
+            how="left"
+        ).drop(columns=[cluster_col_out], errors="ignore")
+
+        clusters[target_col] = clusters["_assigned_target"]
+        clusters[dist_to_water_col] = clusters["_assigned_dist_water"]
+        clusters = clusters.drop(columns=["_assigned_target", "_assigned_dist_water"], errors="ignore")
 
     if fallback_nearest_polygon:
         miss = clusters[target_col].isna()
         if miss.any():
-            nn = gpd.sjoin_nearest(cent.loc[miss, ["geometry"]], polygons_gdf[[target_col, dist_to_water_col, "geometry"]], how="left", distance_col="dist_to_poly").drop(columns=["index_right"], errors="ignore")
+            cent = clusters.loc[miss, ["geometry"]].copy()
+            cent["geometry"] = cent.geometry.centroid
+
+            nn = gpd.sjoin_nearest(
+                cent,
+                polygons_gdf[[target_col, dist_to_water_col, "geometry"]],
+                how="left",
+                distance_col="dist_to_poly"
+            ).drop(columns=["index_right"], errors="ignore")
             nn = nn[~nn.index.duplicated(keep="first")]
+
             clusters.loc[miss, target_col] = nn[target_col].reindex(clusters.loc[miss].index).to_numpy()
             clusters.loc[miss, dist_to_water_col] = nn[dist_to_water_col].reindex(clusters.loc[miss].index).to_numpy()
             clusters.loc[miss, "dist_to_poly"] = nn["dist_to_poly"].reindex(clusters.loc[miss].index).to_numpy()
