@@ -1,0 +1,81 @@
+(pointnetpp_env) C:\Users\blazb\Desktop\Magistrska\Pointnet_Pointnet2_pytorch>python visualize_lidar_predictions.py
+Device: cuda
+Samples by split:
+split
+train    1327
+val       465
+Name: count, dtype: int64
+
+================================================================================
+all_predictions
+Saved CSV:  C:\Users\blazb\Desktop\Magistrska\pointnetpp_results\all_predictions.csv
+Saved GPKG: C:\Users\blazb\Desktop\Magistrska\pointnetpp_results\all_predictions.gpkg
+Samples: 1792
+Accuracy:
+0.9285714285714286
+
+Confusion table:
+pred_name                         Drevesa v vrsti  Mejica  Obvodna vegetacija  Posamezno drevo  Skupina dreves oziroma grmičevja
+true_name
+Drevesa v vrsti                                98      13                   0                6                                 5
+Mejica                                          3     445                   0                3                                49
+Obvodna vegetacija                              0       0                 497                1                                 2
+Posamezno drevo                                 7       4                   0              155                                 4
+Skupina dreves oziroma grmičevja                0      31                   0                0                               469
+
+Wrong predictions by true class:
+true_name
+Mejica                              55
+Skupina dreves oziroma grmičevja    31
+Drevesa v vrsti                     24
+Posamezno drevo                     15
+Obvodna vegetacija                   3
+Name: count, dtype: int64
+
+================================================================================
+train_predictions
+Saved CSV:  C:\Users\blazb\Desktop\Magistrska\pointnetpp_results\train_predictions.csv
+Saved GPKG: C:\Users\blazb\Desktop\Magistrska\pointnetpp_results\train_predictions.gpkg
+Samples: 1327
+Accuracy:
+0.9939713639788997
+
+Confusion table:
+pred_name                         Drevesa v vrsti  Mejica  Obvodna vegetacija  Posamezno drevo  Skupina dreves oziroma grmičevja
+true_name
+Drevesa v vrsti                                88       0                   0                0                                 0
+Mejica                                          0     359                   0                1                                 7
+Obvodna vegetacija                              0       0                 448                0                                 0
+Posamezno drevo                                 0       0                   0              114                                 0
+Skupina dreves oziroma grmičevja                0       0                   0                0                               310
+
+Wrong predictions by true class:
+true_name
+Mejica    8
+Name: count, dtype: int64
+
+================================================================================
+validation_predictions
+Saved CSV:  C:\Users\blazb\Desktop\Magistrska\pointnetpp_results\validation_predictions.csv
+Saved GPKG: C:\Users\blazb\Desktop\Magistrska\pointnetpp_results\validation_predictions.gpkg
+Samples: 465
+Accuracy:
+0.7419354838709677
+
+Confusion table:
+pred_name                         Drevesa v vrsti  Mejica  Obvodna vegetacija  Posamezno drevo  Skupina dreves oziroma grmičevja
+true_name
+Drevesa v vrsti                                10      13                   0                6                                 5
+Mejica                                          3      86                   0                2                                42
+Obvodna vegetacija                              0       0                  49                1                                 2
+Posamezno drevo                                 7       4                   0               41                                 4
+Skupina dreves oziroma grmičevja                0      31                   0                0                               159
+
+Wrong predictions by true class:
+true_name
+Mejica                              47
+Skupina dreves oziroma grmičevja    31
+Drevesa v vrsti                     24
+Posamezno drevo                     15
+Obvodna vegetacija                   3
+Name: count, dtype: int64

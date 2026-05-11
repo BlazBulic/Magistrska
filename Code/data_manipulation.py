@@ -38,6 +38,8 @@ def remove_duplicate_trees(gdf, distance=1.0):
     drop = set(j for i, j in pairs)
     return gdf.drop(gdf.index[list(drop)])
 
+
+
 def aggregate_sat_points_to_trees(sat_points_gdf: gpd.GeoDataFrame, instance_col: str = "treeID", height_col: str = "Z", min_points_per_tree: int = 5, output_crs: str | None = None) -> gpd.GeoDataFrame:
     if instance_col not in sat_points_gdf.columns:
         raise ValueError(f"Missing instance column '{instance_col}'. Available columns: {list(sat_points_gdf.columns)}")

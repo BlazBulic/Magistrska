@@ -4,7 +4,78 @@ from data_manipulation import *
 from plotting import *
 from clustering import *
 
-RECOMPUTE = False  # True = run R, False = reuse saved file
+RECOMPUTE = True  # True = run R, False = reuse saved file
+
+def aggregate_sat_folder_to_trees(sat_output_folder: str, polygons: gpd.GeoDataFrame, instance_col: str = "PredInstance", height_col: str = "Z", min_overlap_ratio: float = 0.1, min_points_inside: int = 1, min_points_per_tree: int = 10, crs_epsg: int = 3794) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    sat_output_folder = Path(sat_output_folder)
+
+    laz_files = sorted([
+        p for p in sat_output_folder.glob("*.laz")
+        if p.name.lower() != "merged.laz"
+    ])
+
+    if len(laz_files) == 0:
+        raise FileNotFoundError(f"No .laz files found in {sat_output_folder}")
+
+    all_trees = []
+    all_intersecting_points = []
+    all_intersecting_polygons = []
+
+    global_offset = 0
+
+    for file_idx, laz_path in enumerate(laz_files):
+        print(f"Processing SAT file {file_idx + 1}/{len(laz_files)}: {laz_path.name}")
+
+        sat_las, _ = read_lidar_data(str(laz_path))
+
+        relevant_sat_points_gdf, intersecting_polygons, intersecting_points = get_intersecting_structures_sat(
+            sat_las,
+            polygons,
+            instance_col=instance_col,
+            min_overlap_ratio=min_overlap_ratio,
+            min_points_inside=min_points_inside,
+            crs_epsg=crs_epsg
+        )
+
+        if len(relevant_sat_points_gdf) == 0:
+            print("  No relevant SAT points in this file.")
+            continue
+
+        trees_gdf = aggregate_sat_points_to_trees(
+            relevant_sat_points_gdf,
+            instance_col=instance_col,
+            height_col=height_col,
+            min_points_per_tree=min_points_per_tree
+        )
+
+        if len(trees_gdf) == 0:
+            print("  No trees after aggregation in this file.")
+            continue
+
+        trees_gdf["local_treeID"] = trees_gdf["treeID"]
+        trees_gdf["source_file"] = laz_path.name
+
+        trees_gdf["treeID"] = trees_gdf["treeID"].astype(int) + global_offset
+        global_offset = int(trees_gdf["treeID"].max()) + 1
+
+        all_trees.append(trees_gdf)
+        all_intersecting_points.append(intersecting_points)
+        all_intersecting_polygons.append(intersecting_polygons)
+
+        print(f"  Trees kept from file: {len(trees_gdf)}")
+
+    if len(all_trees) == 0:
+        empty = gpd.GeoDataFrame(columns=["treeID", "geometry"], geometry="geometry", crs=f"EPSG:{crs_epsg}")
+        return empty, polygons.iloc[0:0].copy(), polygons.iloc[0:0].copy()
+
+    trees_all = gpd.GeoDataFrame(pd.concat(all_trees, ignore_index=True), geometry="geometry", crs=all_trees[0].crs)
+
+    intersecting_points_all = gpd.GeoDataFrame(pd.concat(all_intersecting_points, ignore_index=True), geometry="geometry", crs=all_intersecting_points[0].crs) if len(all_intersecting_points) > 0 else gpd.GeoDataFrame(geometry="geometry", crs=trees_all.crs)
+    intersecting_polygons_all = gpd.GeoDataFrame(pd.concat(all_intersecting_polygons, ignore_index=True), geometry="geometry", crs=all_intersecting_polygons[0].crs).drop_duplicates() if len(all_intersecting_polygons) > 0 else polygons.iloc[0:0].copy()
+
+    print("Total aggregated SAT trees:", len(trees_all))
+
+    return trees_all, intersecting_polygons_all, intersecting_points_all
 
 def R_version():
     block_number = 1
@@ -133,8 +204,8 @@ def SAT_version() :
     lidar_folder_path = rf"C:\Users\blazb\Desktop\Magistrska\Data\GT_LIDAR\block{block_number}_{size_of_block}by{size_of_block}"
 
     # SegmentAnyTree output
-    sat_output_folder = rf"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\segmentanytree_out"
-    merged_segmented_laz_path = rf"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\segmentanytree_out\GKOT_585_165_preprocessed_out.laz"
+    sat_output_folder = rf"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\segmentanytree_out\block1_3by3_preprocessed025_out"
+    merged_segmented_laz_path = rf"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\SAT_merged.laz"
 
     gt_ortofoto_path = r"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\vegetation_with_water_distances\vegetation_with_water_distances.shp"
 
@@ -143,7 +214,7 @@ def SAT_version() :
     # -------------------------
     # STEP 1: get segmented trees from SegmentAnyTree
     # -------------------------
-    if RECOMPUTE:
+    """ if RECOMPUTE:
         # assumes SAT already wrote one or more .las/.laz files into sat_output_folder
         segmented_trees_las, _ = read_lidar_folder(sat_output_folder)
 
@@ -162,6 +233,19 @@ def SAT_version() :
 
     relevant_trees_gdf = aggregate_sat_points_to_trees(relevant_sat_points_gdf, instance_col="PredInstance", height_col="Z", min_points_per_tree=10)
 
+    print("Relevant trees after SAT point-overlap filtering:", len(relevant_trees_gdf)) """
+
+    relevant_trees_gdf, intersecting_polygons, intersecting_points = aggregate_sat_folder_to_trees(
+    sat_output_folder=sat_output_folder,
+    polygons=polygons,
+    instance_col="PredInstance",
+    height_col="Z",
+    min_overlap_ratio=0.1,
+    min_points_inside=1,
+    min_points_per_tree=10,
+    crs_epsg=3794
+)
+
     print("Relevant trees after SAT point-overlap filtering:", len(relevant_trees_gdf))
 
     # -------------------------
@@ -179,8 +263,8 @@ def SAT_version() :
     # -------------------------
     # STEP 5: dataset
     # -------------------------
-    #dataset_path = rf"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\cluster_dataset_SAT_block{block_number}_{size_of_block}by{size_of_block}.gpkg"
-    dataset_path = rf"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\cluster_dataset_SAT_GKOT_585_165.gpkg"
+    dataset_path = rf"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\SAT_merged.gpkg"
+    #dataset_path = rf"C:\Users\blazb\Desktop\Magistrska\Data\Working_data\cluster_dataset_SAT_GKOT_585_165.gpkg"
 
     dataset = build_cluster_dataset_from_labels(
         trees_gdf=relevant_trees_gdf,
@@ -188,7 +272,7 @@ def SAT_version() :
         polygons_gdf=intersecting_polygons,
         target_col="OPIS",
         dist_to_water_col="edge_dist_",
-        height_col="Z",
+        height_col="height_p90",
         cluster_geom="buffer_union",
         density_mode="geom_area",
         save_path=dataset_path

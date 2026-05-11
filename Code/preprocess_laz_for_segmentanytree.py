@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 import laspy
+from pathlib import Path
 from scipy.spatial import cKDTree
 
 
@@ -76,10 +77,41 @@ def preprocess_laz(input_path, output_path, min_height, keep_fraction, seed):
     print("Done.")
 
 
+def preprocess_folder(input_folder, output_folder, min_height, keep_fraction, seed):
+    input_folder = Path(input_folder)
+    output_folder = Path(output_folder)
+    output_folder.mkdir(parents=True, exist_ok=True)
+
+    files = sorted(list(input_folder.glob("*.laz")) + list(input_folder.glob("*.las")))
+
+    if len(files) == 0:
+        raise ValueError(f"No .laz or .las files found in: {input_folder}")
+
+    print(f"Found {len(files)} files.")
+
+    for i, input_path in enumerate(files, start=1):
+        output_path = output_folder / f"{input_path.stem}_preprocessed{input_path.suffix}"
+
+        print()
+        print("=" * 80)
+        print(f"[{i}/{len(files)}] Processing: {input_path.name}")
+        print("=" * 80)
+
+        try:
+            preprocess_laz(str(input_path), str(output_path), min_height, keep_fraction, seed)
+        except Exception as e:
+            print(f"FAILED: {input_path.name}")
+            print(f"Reason: {e}")
+            continue
+
+    print()
+    print("Folder preprocessing done.")
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Preprocess LAZ for SegmentAnyTree.")
-    parser.add_argument("input", help="Input .laz/.las file")
-    parser.add_argument("output", help="Output .laz/.las file")
+    parser = argparse.ArgumentParser(description="Preprocess LAZ/LAS files for SegmentAnyTree.")
+    parser.add_argument("input", help="Input .laz/.las file or folder")
+    parser.add_argument("output", help="Output .laz/.las file or folder")
     parser.add_argument("--min-height", type=float, default=1.0, help="Minimum normalized height to keep")
     parser.add_argument("--keep-fraction", type=float, default=0.5, help="Fraction of points to keep after filtering")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
@@ -89,7 +121,12 @@ def main():
     if not (0 < args.keep_fraction <= 1):
         raise ValueError("--keep-fraction must be in (0, 1].")
 
-    preprocess_laz(args.input, args.output, args.min_height, args.keep_fraction, args.seed)
+    input_path = Path(args.input)
+
+    if input_path.is_dir():
+        preprocess_folder(args.input, args.output, args.min_height, args.keep_fraction, args.seed)
+    else:
+        preprocess_laz(args.input, args.output, args.min_height, args.keep_fraction, args.seed)
 
 
 if __name__ == "__main__":
